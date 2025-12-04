@@ -1,13 +1,37 @@
 package main
 
 import (
-	"UserService/internal/handler"
-	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"time"
+
+	"UserService/db"
+	"UserService/internal/config"
+	"UserService/internal/server"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	http.HandleFunc("/health", handler.HealthCheck)
-	fmt.Println("User service running on :8000")
-	http.ListenAndServe(":8000", nil)
+
+	config.Init()
+	database := db.Database()
+
+	// migration.Migration()
+
+	handlers := server.InitializeHandlers(database)
+
+	srv := server.NewServer(database, handlers)
+
+	_ = godotenv.Load()
+
+	httpServer := &http.Server{
+		Addr:         ":" + os.Getenv("PORT"),
+		Handler:      srv.Router,
+		ReadTimeout:  time.Second * 15,
+		WriteTimeout: time.Second * 15,
+	}
+
+	log.Fatal(httpServer.ListenAndServe())
 }
