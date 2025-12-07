@@ -1,3 +1,4 @@
+// db/database.go
 package db
 
 import (
@@ -9,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func Database() *gorm.DB {
+var Database = func() (db *gorm.DB) {
 	_ = godotenv.Load()
 
 	dsn := fmt.Sprintf(
@@ -23,10 +24,14 @@ func Database() *gorm.DB {
 		os.Getenv("DB_SCHEMA"),
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Println("Conexion exitosa a Neon")
 	return db
 }
