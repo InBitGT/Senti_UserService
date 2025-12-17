@@ -6,16 +6,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func SetupRoutes(r *mux.Router, h *Handler) {
-	user := r.PathPrefix("/users").Subrouter()
+func SetupRoutes(api *mux.Router, h *Handler) {
+	user := api.PathPrefix("/users").Subrouter()
 
+	// Interno (sin JWT)
+	internal := user.PathPrefix("/internal").Subrouter()
+	internal.Use(middleware.InternalKeyMiddleware)
+	internal.HandleFunc("/admin", h.CreateAdminInternal).Methods("POST")
+
+	// Protegido (JWT)
 	protected := user.NewRoute().Subrouter()
 	protected.Use(middleware.JWTMiddleware)
 
 	protected.HandleFunc("/{id}", h.Update).Methods("PUT")
 	protected.HandleFunc("/{id}", h.Delete).Methods("DELETE")
 	protected.HandleFunc("/tenant", h.ListByTenant).Methods("GET")
-
 	protected.HandleFunc("", h.Create).Methods("POST")
-
 }

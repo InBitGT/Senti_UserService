@@ -14,6 +14,7 @@ type Service interface {
 	Delete(id uint) error
 	FindByTenant(tenantID uint) ([]User, error)
 	ChangePassword(id uint, req *ChangePasswordRequest) error
+	CreateInternal(u *User) error
 }
 
 type service struct {
@@ -98,4 +99,8 @@ func (s *service) ChangePassword(id uint, req *ChangePasswordRequest) error {
 	u.PasswordHash = string(newHash)
 
 	return s.repo.Update(u)
+}
+
+func (s *service) CreateInternal(u *User) error {
+	return s.repo.Create(u)
 }
