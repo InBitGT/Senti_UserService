@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func Migrate() {
+func Migration() {
 	db := db.Database()
 
 	err := db.AutoMigrate(&user.User{})

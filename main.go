@@ -9,6 +9,7 @@ import (
 	"UserService/db"
 	"UserService/internal/config"
 	"UserService/internal/server"
+	"UserService/migration"
 
 	"github.com/joho/godotenv"
 )
@@ -18,7 +19,7 @@ func main() {
 	config.Init()
 	database := db.Database()
 
-	// migration.Migration()
+	migration.Migration()
 
 	handlers := server.InitializeHandlers(database)
 

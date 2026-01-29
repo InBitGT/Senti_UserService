@@ -6,6 +6,7 @@ import (
 	"UserService/internal/common"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type Service interface {
@@ -15,6 +16,7 @@ type Service interface {
 	FindByTenant(tenantID uint) ([]User, error)
 	ChangePassword(id uint, req *ChangePasswordRequest) error
 	CreateInternal(u *User) error
+	HardDelete(id uint) error
 }
 
 type service struct {
@@ -25,8 +27,10 @@ func NewService(repo Repository) Service {
 	return &service{repo}
 }
 
-// ------------------------- CREATE -------------------------
 func (s *service) Create(req *CreateUserRequest) (*User, error) {
+	if req.TenantID == 0 || req.Email == "" || req.Password == "" || req.RoleID == 0 || req.Username == "" {
+		return nil, errors.New(common.ERR_REQUIRED_FIELD)
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -35,10 +39,17 @@ func (s *service) Create(req *CreateUserRequest) (*User, error) {
 
 	u := &User{
 		TenantID:     req.TenantID,
+		Username:     req.Username,
+		Picture:      req.Picture,
 		Email:        req.Email,
 		Phone:        req.Phone,
-		PasswordHash: string(hash),
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		AddressID:    req.AddressID,
 		RoleID:       req.RoleID,
+		PasswordHash: string(hash),
+		TwoFAEnabled: false,
+		Status:       true,
 	}
 
 	if err := s.repo.Create(u); err != nil {
@@ -48,16 +59,36 @@ func (s *service) Create(req *CreateUserRequest) (*User, error) {
 	return u, nil
 }
 
-// ------------------------- UPDATE -------------------------
 func (s *service) Update(id uint, req *UpdateUserRequest) (*User, error) {
-
 	u, err := s.repo.FindByID(id)
 	if err != nil {
-		return nil, errors.New(common.ERR_NOT_FOUND)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New(common.ERR_NOT_FOUND)
+		}
+		return nil, errors.New(common.ERR_DATABASE_ERROR)
 	}
 
-	u.Phone = req.Phone
-	u.RoleID = req.RoleID
+	if req.Username != nil {
+		u.Username = *req.Username
+	}
+	if req.Picture != nil {
+		u.Picture = req.Picture
+	}
+	if req.Phone != nil {
+		u.Phone = *req.Phone
+	}
+	if req.FirstName != nil {
+		u.FirstName = *req.FirstName
+	}
+	if req.LastName != nil {
+		u.LastName = *req.LastName
+	}
+	if req.AddressID != nil {
+		u.AddressID = *req.AddressID
+	}
+	if req.RoleID != nil {
+		u.RoleID = *req.RoleID
+	}
 
 	if err := s.repo.Update(u); err != nil {
 		return nil, errors.New(common.ERR_DATABASE_ERROR)
@@ -66,7 +97,6 @@ func (s *service) Update(id uint, req *UpdateUserRequest) (*User, error) {
 	return u, nil
 }
 
-// ------------------------- DELETE -------------------------
 func (s *service) Delete(id uint) error {
 	if err := s.repo.Delete(id); err != nil {
 		return errors.New(common.ERR_DATABASE_ERROR)
@@ -74,7 +104,6 @@ func (s *service) Delete(id uint) error {
 	return nil
 }
 
-// ------------------------- FIND BY TENANT -------------------------
 func (s *service) FindByTenant(t uint) ([]User, error) {
 	list, err := s.repo.FindByTenant(t)
 	if err != nil {
@@ -83,9 +112,7 @@ func (s *service) FindByTenant(t uint) ([]User, error) {
 	return list, nil
 }
 
-// ------------------------- CHANGE PASSWORD -------------------------
 func (s *service) ChangePassword(id uint, req *ChangePasswordRequest) error {
-
 	u, err := s.repo.FindByID(id)
 	if err != nil {
 		return errors.New(common.ERR_NOT_FOUND)
@@ -95,12 +122,20 @@ func (s *service) ChangePassword(id uint, req *ChangePasswordRequest) error {
 		return errors.New(common.ERR_INVALID_LOGIN)
 	}
 
-	newHash, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	u.PasswordHash = string(newHash)
+	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New(common.ERR_INTERNAL_ERROR)
+	}
 
+	u.PasswordHash = string(newHash)
 	return s.repo.Update(u)
 }
 
 func (s *service) CreateInternal(u *User) error {
+	u.Status = true
 	return s.repo.Create(u)
+}
+
+func (s *service) HardDelete(id uint) error {
+	return s.repo.HardDelete(id)
 }

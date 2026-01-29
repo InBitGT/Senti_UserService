@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"UserService/internal/common"
-	"UserService/internal/middleware"
+	"UserService/internal/middlewarejwt"
 
 	"github.com/gorilla/mux"
 )
@@ -65,9 +65,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 // ------------------------- LIST BY TENANT -------------------------
 func (h *Handler) ListByTenant(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value(middleware.UserCtxKey).(*middleware.UserClaims)
+	tenantID, ok := r.Context().Value(middlewarejwt.ContextTenantIDKey).(uint)
+	if !ok || tenantID == 0 {
+		common.ErrorResponse(w, http.StatusUnauthorized, common.HTTP_UNAUTHORIZED, common.ERR_UNAUTHORIZED, nil)
+		return
+	}
 
-	users, err := h.svc.FindByTenant(claims.TenantID)
+	users, err := h.svc.FindByTenant(tenantID)
 	if err != nil {
 		msg := err.Error()
 		common.ErrorResponse(w, http.StatusInternalServerError, common.HTTP_SERVER_ERROR, msg, &msg)
@@ -81,7 +85,6 @@ func (h *Handler) ListByTenant(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
-
 	if err != nil {
 		common.ErrorResponse(w, http.StatusBadRequest, common.HTTP_BAD_REQUEST, common.ERR_INVALID_FORMAT, nil)
 		return

@@ -2,6 +2,7 @@ package user
 
 import (
 	"UserService/internal/middleware"
+	"UserService/internal/middlewarejwt"
 
 	"github.com/gorilla/mux"
 )
@@ -16,7 +17,7 @@ func SetupRoutes(api *mux.Router, h *Handler) {
 
 	// Protegido (JWT)
 	protected := user.NewRoute().Subrouter()
-	protected.Use(middleware.JWTMiddleware)
+	protected.Use(middlewarejwt.JWTMiddleware)
 
 	protected.HandleFunc("/{id}", h.Update).Methods("PUT")
 	protected.HandleFunc("/{id}", h.Delete).Methods("DELETE")
